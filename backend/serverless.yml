@@ -1,0 +1,147 @@
+service: url-shortener-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  
+  environment:
+    URLS_TABLE: ${self:service}-${self:provider.stage}-urls
+    CUSTOM_DOMAIN: ${opt:domain, ''}
+    NODE_ENV: ${self:provider.stage}
+  
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.URLS_TABLE}"
+  
+  logs:
+    restApi: true
+
+functions:
+  # Create short URL
+  shortenUrl:
+    handler: src/handlers/shorten.handler
+    events:
+      - http:
+          path: shorten
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: shorten
+          method: options
+          cors: true
+
+  # Redirect to original URL
+  redirectUrl:
+    handler: src/handlers/redirect.handler
+    events:
+      - http:
+          path: /{shortCode}
+          method: get
+          request:
+            parameters:
+              paths:
+                shortCode: true
+
+  # Get URL statistics
+  getStats:
+    handler: src/handlers/stats.handler
+    events:
+      - http:
+          path: stats/{shortCode}
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+          request:
+            parameters:
+              paths:
+                shortCode: true
+      - http:
+          path: stats/{shortCode}
+          method: options
+          cors: true
+
+resources:
+  Resources:
+    # DynamoDB table for storing URLs
+    UrlsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.URLS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: shortCode
+            AttributeType: S
+        KeySchema:
+          - AttributeName: shortCode
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Author
+            Value: "Jessie Borras"
+
+  # Outputs for other services to reference
+  Outputs:
+    ApiGatewayRestApiId:
+      Value:
+        Ref: ApiGatewayRestApi
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApiGatewayRestApiId
+    
+    ApiGatewayRestApiRootResourceId:
+      Value:
+        Fn::GetAtt:
+          - ApiGatewayRestApi
+          - RootResourceId
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApiGatewayRestApiRootResourceId
+    
+    UrlsTableName:
+      Value: ${self:provider.environment.URLS_TABLE}
+      Export:
+        Name: ${self:service}-${self:provider.stage}-UrlsTableName
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    host: 0.0.0.0
+    port: 3001
+    httpPort: 3001

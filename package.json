@@ -1,0 +1,65 @@
+{
+  "name": "serverless-url-shortener",
+  "version": "1.0.0",
+  "description": "A serverless URL shortener built with Next.js, AWS Lambda, and DynamoDB",
+  "author": "Jessie Borras <hello@jessiedev.xyz>",
+  "homepage": "https://jessiedev.xyz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jessieborras/serverless-url-shortener"
+  },
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "deploy": "npm run deploy:backend",
+    "deploy:backend": "cd backend && npm run deploy",
+    "deploy:frontend": "cd frontend && npm run build && npm run export",
+    "deploy:prod": "npm run deploy:backend:prod && npm run deploy:frontend:prod",
+    "deploy:backend:prod": "cd backend && serverless deploy --stage prod",
+    "deploy:frontend:prod": "cd frontend && npm run build && npm run export",
+    "deploy:infrastructure": "aws cloudformation deploy --template-file infrastructure/cloudformation.yml --stack-name url-shortener-infrastructure --parameter-overrides Stage=prod ServiceName=url-shortener --capabilities CAPABILITY_IAM",
+    "remove": "cd backend && npm run remove",
+    "logs": "cd backend && npm run logs",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:fix": "npm run lint:frontend:fix && npm run lint:backend:fix",
+    "lint:frontend:fix": "cd frontend && npm run lint --fix",
+    "lint:backend:fix": "cd backend && npm run lint:fix",
+    "clean": "rm -rf node_modules frontend/node_modules backend/node_modules frontend/.next frontend/dist backend/.serverless",
+    "setup": "npm run install:all && npm run setup:env",
+    "setup:env": "cp frontend/.env.example frontend/.env.local && echo 'Please configure your environment variables in frontend/.env.local'",
+    "verify": "npm run lint && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "serverless",
+    "url-shortener",
+    "nextjs",
+    "aws-lambda",
+    "dynamodb",
+    "react",
+    "typescript"
+  ],
+  "license": "MIT"
+}
